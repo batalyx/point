@@ -8,16 +8,21 @@
 
 import Cocoa
 
-protocol Operation {
-
+protocol Marking {
+    func draw(_ dirtyRect: NSRect);
 }
 
-class DrawRect : Operation {
+class DrawRect : Marking {
+    var rect: NSRect
     init( from start: NSPoint, to end: NSPoint) {
-
+        rect = NSRect(origin: start,
+                      size: NSSize(width: end.x-start.x,
+                                   height: fabs(end.y-start.y)))
+        rect = rect.standardized
     }
+
     func draw(_ dirtyRect: NSRect) {
-        
+        NSFrameRectWithWidth(rect, 2.0)
     }
 }
 
@@ -26,8 +31,8 @@ class DrawableView: NSView {
     var end: NSEvent? = nil {
         didSet { self.needsDisplay = true }
     }
-    var paths = Array<NSBezierPath>()
-    var rects = Array<NSRect>()
+
+    var markings = Array<Marking>()
 
     override var acceptsFirstResponder: Bool {
         return true
@@ -35,10 +40,10 @@ class DrawableView: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
-        // Drawing code here.
+
         let ov = NSBezierPath(ovalIn: dirtyRect)
         ov.stroke()
-        //debugPrint("\(start)-\(end)")
+
         if start != nil && end != nil {
             var sp = start!.locationInWindow
             var ep = end!.locationInWindow
@@ -48,25 +53,15 @@ class DrawableView: NSView {
             let ey = max(sp.y, ep.y)
             sp = NSPoint(x: sx, y: sy)
             ep = NSPoint(x: ex, y: ey)
-// We do not need converting, as we're using fullscreen window & view.
-//            let r = self.convert(
-//                NSRect(origin: sp,
-//                       size: CGSize(width: ep.x-sp.x, height: fabs(ep.y-sp.y))),
-//                to: nil)
-            let r = NSRect(origin: sp,
-                           size: CGSize(width: ep.x-sp.x, height: fabs(ep.y-sp.y)))
-            rects.append(r.standardized)
-//            let pth = NSBezierPath(roundedRect: r, xRadius: 8.0, yRadius: 8.0)
-//            //print(pth)
-//            paths.append(pth)
+
+            markings.append(DrawRect(from: sp, to: ep))
+
             start = nil
             end = nil
         }
-//        for path in paths {
-//            path.stroke()
-//        }
-        for r in rects {
-            NSFrameRectWithWidth(r, 2.0)
+
+        for mark in markings {
+            mark.draw(dirtyRect)
         }
     }
 
@@ -78,7 +73,6 @@ class DrawableView: NSView {
     override func mouseUp(with event: NSEvent) {
         guard end == nil else { return }
         end = event
-        //self.needsDisplay = true
     }
 
     override func mouseMoved(with event: NSEvent) {
@@ -91,8 +85,8 @@ class DrawableView: NSView {
                 if paths.count > 0 {
                     paths.removeLast()
                 }
-                if rects.count > 0 {
-                    rects.removeLast()
+                if markings.count > 0 {
+                    markings.removeLast()
                 }
                 self.needsDisplay = true
             } else {
