@@ -8,6 +8,19 @@
 
 import Cocoa
 
+protocol Operation {
+
+}
+
+class DrawRect : Operation {
+    init( from start: NSPoint, to end: NSPoint) {
+
+    }
+    func draw(_ dirtyRect: NSRect) {
+        
+    }
+}
+
 class DrawableView: NSView {
     var start: NSEvent? = nil
     var end: NSEvent? = nil {
