@@ -15,7 +15,9 @@ protocol Marking {
 
 protocol MarkingFactory {
     func startEvent(_ e: NSEvent)
+    func moveEvent(_ e: NSEvent)
     func endEvent(_ e: NSEvent)
+    func drawTemp(_ dirtyRect: NSRect)
     func makeMarking() -> Marking?
 }
 
@@ -30,15 +32,7 @@ class DrawRect : Marking {
                       size: NSSize(width: end.x-start.x,
                                    height: fabs(end.y-start.y)))
         self.rect = rect //.standardized
-//        self.start = nil
-//        self.end = nil
     }
-
-//    init(from start: NSPoint) {
-//        self.start = start
-//        self.end = nil
-//        self.rect = nil
-//    }
 
     init(withRect r: NSRect) {
         self.rect = r
@@ -53,27 +47,45 @@ class DrawRect : Marking {
     class Factory : MarkingFactory {
         var start: NSPoint?
         var end: NSPoint?
+        var temporaryPath: NSBezierPath?
 
-        func withStart(_ s: NSPoint) {
-            start = s
-            end = nil
-            NSLog("withstart")
-        }
-
-        func withEnd(_ e: NSPoint) {
-            end = e
-            let sx = min(start!.x, end!.x)
-            let ex = max(start!.x, end!.x)
-            let sy = min(start!.y, end!.y)
-            let ey = max(start!.y, end!.y)
-            start = NSPoint(x: sx, y: sy)
-            end   = NSPoint(x: ex, y: ey)
-            NSLog("withEnd")
-        }
+//        func withStart(_ s: NSPoint) {
+//            start = s
+//            end = nil
+//            NSLog("withstart")
+//        }
+//
+//        func withEnd(_ e: NSPoint) {
+//            end = e
+//            let sx = min(start!.x, end!.x)
+//            let ex = max(start!.x, end!.x)
+//            let sy = min(start!.y, end!.y)
+//            let ey = max(start!.y, end!.y)
+//            start = NSPoint(x: sx, y: sy)
+//            end   = NSPoint(x: ex, y: ey)
+//            NSLog("withEnd")
+//        }
 
         func startEvent(_ e:NSEvent) {
             start = e.locationInWindow
             end = nil
+            temporaryPath = NSBezierPath()
+            temporaryPath?.lineWidth = 0.1
+            temporaryPath?.move(to: start!)
+        }
+
+        func moveEvent(_ e:NSEvent) {
+            //end = e.locationInWindow
+//            let sx = min(start!.x, end!.x)
+//            let ex = max(start!.x, end!.x)
+//            let sy = min(start!.y, end!.y)
+//            let ey = max(start!.y, end!.y)
+//            start = NSPoint(x: sx, y: sy)
+//            end   = NSPoint(x: ex, y: ey)
+
+            if let pth = self.temporaryPath {
+                pth.line(to: e.locationInWindow)
+            }
         }
 
         func endEvent(_ e:NSEvent) {
@@ -84,6 +96,15 @@ class DrawRect : Marking {
             let ey = max(start!.y, end!.y)
             start = NSPoint(x: sx, y: sy)
             end   = NSPoint(x: ex, y: ey)
+            if temporaryPath != nil {
+                temporaryPath = nil
+            }
+        }
+
+        func drawTemp(_ dirtyRect: NSRect) {
+            if let path = temporaryPath {
+                path.stroke()
+            }
         }
 
         func makeMarking() -> Marking? {
@@ -104,6 +125,7 @@ class DrawableView: NSView {
     var markingStyles = [
         "r": DrawRect.Factory()
     ]
+
     var currentStyle: MarkingFactory?
 
     override var acceptsFirstResponder: Bool {
@@ -116,10 +138,8 @@ class DrawableView: NSView {
         let ov = NSBezierPath(ovalIn: dirtyRect)
         ov.stroke()
 
-        if start != nil && end != nil {
-            NSLog("why")
-            start = nil
-            end = nil
+        if let style = currentStyle {
+            style.drawTemp(dirtyRect)
         }
 
         for mark in markings {
@@ -129,10 +149,14 @@ class DrawableView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         NSLog("mds -")
+        if currentStyle == nil { // TODO lisää oletus paremmin
+            NSLog("curStyle<-")
+            currentStyle = markingStyles["r"]
+        }
         guard start == nil else { return }
         start = event
+        end = nil
         currentStyle!.startEvent(event)
-        NSLog("md")
     }
 
     override func mouseUp(with event: NSEvent) {
@@ -142,14 +166,17 @@ class DrawableView: NSView {
         if let marking = currentStyle?.makeMarking() {
             markings.append(marking)
         }
+        start = nil
+        end = nil
     }
 
-    override func mouseMoved(with event: NSEvent) {
-        // ..
+    override func mouseDragged(with event: NSEvent) {
+        currentStyle!.moveEvent(event)
+        self.needsDisplay = true
     }
 
     override func keyDown(with event: NSEvent) {
-        if currentStyle == nil {
+        if currentStyle == nil { // TODO lisää oletus paremming
             NSLog("curStyle<-")
             currentStyle = markingStyles["r"]
         }
