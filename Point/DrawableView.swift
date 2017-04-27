@@ -31,7 +31,7 @@ class DrawRect : Marking {
         let rect = NSRect(origin: start,
                       size: NSSize(width: end.x-start.x,
                                    height: fabs(end.y-start.y)))
-        self.rect = rect //.standardized
+        self.rect = rect //.standardized not needed as screen size window
     }
 
     init(withRect r: NSRect) {
@@ -48,23 +48,6 @@ class DrawRect : Marking {
         var start: NSPoint?
         var end: NSPoint?
         var temporaryPath: NSBezierPath?
-
-//        func withStart(_ s: NSPoint) {
-//            start = s
-//            end = nil
-//            NSLog("withstart")
-//        }
-//
-//        func withEnd(_ e: NSPoint) {
-//            end = e
-//            let sx = min(start!.x, end!.x)
-//            let ex = max(start!.x, end!.x)
-//            let sy = min(start!.y, end!.y)
-//            let ey = max(start!.y, end!.y)
-//            start = NSPoint(x: sx, y: sy)
-//            end   = NSPoint(x: ex, y: ey)
-//            NSLog("withEnd")
-//        }
 
         func startEvent(_ e:NSEvent) {
             start = e.locationInWindow
@@ -148,9 +131,7 @@ class DrawableView: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
-        NSLog("mds -")
         if currentStyle == nil { // TODO lisää oletus paremmin
-            NSLog("curStyle<-")
             currentStyle = markingStyles["r"]
         }
         guard start == nil else { return }
@@ -177,7 +158,6 @@ class DrawableView: NSView {
 
     override func keyDown(with event: NSEvent) {
         if currentStyle == nil { // TODO lisää oletus paremming
-            NSLog("curStyle<-")
             currentStyle = markingStyles["r"]
         }
         if let keys = event.characters {
@@ -186,7 +166,6 @@ class DrawableView: NSView {
                     markings.removeLast()
                 }
                 self.needsDisplay = true
-         //   } else if pressed in markingStyles {
             } else if markingStyles.keys.contains(keys) {
                 currentStyle = markingStyles[keys]
             } else {
