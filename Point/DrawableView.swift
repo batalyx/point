@@ -16,9 +16,11 @@ protocol Marking {
 protocol MarkingFactory {
     func startEvent(_ e: NSEvent)
     func moveEvent(_ e: NSEvent)
-    func endEvent(_ e: NSEvent)
+    func endEvent(_ e: NSEvent, _ markings: inout [Marking]) // TODO [Marking] omaksi protoksi/luokaksi
+    func selected() // when key of this factory pressed and this is selected
+    func deselected() // when other factory's key is pressed and this is deselected
     func drawTemp(_ dirtyRect: NSRect)
-    func makeMarking() -> Marking?
+    func makeMarking() -> Marking? // XXX pois, liian jotain, -> endEventin sisälle
 }
 
 
@@ -67,11 +69,15 @@ class DrawRect : Marking {
 //            end   = NSPoint(x: ex, y: ey)
 
             if let pth = self.temporaryPath {
-                pth.line(to: e.locationInWindow)
+                pth.appendRect(
+                    NSRect(x: (start?.x)!, y: (start?.y)!,
+                           width:  e.locationInWindow.x-(start?.x)!,
+                           height: e.locationInWindow.y-(start?.y)!))
+                //line(to: e.locationInWindow)
             }
         }
 
-        func endEvent(_ e:NSEvent) {
+        func endEvent(_ e:NSEvent, _ markings: inout [Marking]) {
             end = e.locationInWindow
             let sx = min(start!.x, end!.x)
             let ex = max(start!.x, end!.x)
@@ -82,6 +88,16 @@ class DrawRect : Marking {
             if temporaryPath != nil {
                 temporaryPath = nil
             }
+        }
+
+        // when key of this factory pressed and this is selected
+        func selected() {
+
+        }
+
+        // when other factory's key is pressed and this is deselected
+        func deselected() {
+
         }
 
         func drawTemp(_ dirtyRect: NSRect) {
@@ -97,6 +113,85 @@ class DrawRect : Marking {
     }
 }
 
+class DrawLine : Marking {
+    var start: NSPoint?
+    var end: NSPoint?
+
+    init(from start: NSPoint, to end: NSPoint) {
+        self.start = start
+        self.end = end
+    }
+
+    init(withRect r: NSRect) {
+        self.start = NSPoint(x: r.minX, y: r.minY)
+        self.end = NSPoint(x: r.maxX, y: r.maxY)
+    }
+
+    func draw(_ dirtyRect: NSRect) {
+        if let start = self.start {
+            if let end = self.end {
+                let pth = NSBezierPath()
+                pth.lineWidth = 2.0
+                pth.move(to: start)
+                pth.line(to: end)
+                pth.stroke()
+            }
+        }
+    }
+
+    class Factory : MarkingFactory {
+        var start: NSPoint?
+        var end: NSPoint?
+        var temporaryPath: NSBezierPath?
+
+        func startEvent(_ e:NSEvent) {
+            start = e.locationInWindow
+            end = nil
+            temporaryPath = NSBezierPath()
+            temporaryPath?.lineWidth = 0.1
+            temporaryPath?.move(to: start!)
+        }
+
+        func moveEvent(_ e:NSEvent) {
+            end = e.locationInWindow
+
+            if let pth = self.temporaryPath {
+                pth.move(to: NSPoint(x: (start?.x)!, y: (start?.y)!))
+                pth.line(to: e.locationInWindow)
+            }
+        }
+
+        func endEvent(_ e:NSEvent, _ markings: inout [Marking]) {
+            end = e.locationInWindow
+            if temporaryPath != nil {
+                temporaryPath = nil
+            }
+        }
+
+        // when key of this factory pressed and this is selected
+        func selected() {
+
+        }
+
+        // when other factory's key is pressed and this is deselected
+        func deselected() {
+
+        }
+
+        func drawTemp(_ dirtyRect: NSRect) {
+            if let path = temporaryPath {
+                path.stroke()
+            }
+        }
+
+        func makeMarking() -> Marking? {
+            guard start != nil && end != nil else { return nil }
+            return DrawLine(from: start!, to: end!)
+        }
+    }
+}
+
+
 class DrawableView: NSView {
     var start: NSEvent? = nil
     var end: NSEvent? = nil {
@@ -106,8 +201,9 @@ class DrawableView: NSView {
     var markings = Array<Marking>()
 
     var markingStyles = [
-        "r": DrawRect.Factory()
-    ]
+        "r": DrawRect.Factory(),
+        "l": DrawLine.Factory()
+        ] as [String : MarkingFactory]
 
     var currentStyle: MarkingFactory?
 
@@ -117,9 +213,6 @@ class DrawableView: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
-
-        let ov = NSBezierPath(ovalIn: dirtyRect)
-        ov.stroke()
 
         if let style = currentStyle {
             style.drawTemp(dirtyRect)
@@ -143,12 +236,12 @@ class DrawableView: NSView {
     override func mouseUp(with event: NSEvent) {
         guard end == nil else { return }
         end = event
-        currentStyle!.endEvent(event)
-        if let marking = currentStyle?.makeMarking() {
+        currentStyle!.endEvent(event, &markings)
+        if let marking = currentStyle?.makeMarking() { // XXX endEventin sisälle!!!
             markings.append(marking)
         }
         start = nil
-        end = nil
+        end   = nil
     }
 
     override func mouseDragged(with event: NSEvent) {
