@@ -16,7 +16,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         // Insert code here to initialize your application
         let nsa:NSApplication = aNotification.object as! NSApplication
-        if let screen = NSScreen.main() {
+        if let screen = NSScreen.main {
             nsa.mainWindow!.setFrame(screen.visibleFrame, display: true, animate: true)
         }
     }

@@ -42,7 +42,7 @@ class DrawRect : Marking {
 
     func draw(_ dirtyRect: NSRect) {
         if let rect = self.rect {
-            NSFrameRectWithWidth(rect, 2.0)
+            rect.frame(withWidth: 2.0)
         }
     }
 
