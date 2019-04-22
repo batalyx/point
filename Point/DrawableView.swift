@@ -32,7 +32,7 @@ class DrawRect : Marking {
     init(from start: NSPoint, to end: NSPoint) {
         let rect = NSRect(origin: start,
                       size: NSSize(width: end.x-start.x,
-                                   height: fabs(end.y-start.y)))
+                                   height: abs(end.y-start.y)))
         self.rect = rect //.standardized not needed as screen size window
     }
 
