@@ -384,6 +384,11 @@ class DrawableView: NSView {
                     markings.removeLast()
                 }
                 self.needsDisplay = true
+            } else if keys == "C" {
+                if markings.count > 0 {
+                    markings.removeAll()
+                }
+                self.needsDisplay = true
             } else if keys == "b" {
                 currentColor = .black
             } else if keys == "B" {
