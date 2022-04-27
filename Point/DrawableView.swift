@@ -192,6 +192,94 @@ class DrawLine : Marking {
 }
 
 
+class DrawPath : Marking {
+    var start: NSPoint?
+    var end: NSPoint?
+    var temporaryPath: NSBezierPath?
+
+    init(from start: NSPoint, to end: NSPoint, path: NSBezierPath) {
+        self.start = start
+        self.end = end
+        self.temporaryPath = path
+        self.temporaryPath?.lineWidth = 2.0
+    }
+
+    init(withRect r: NSRect) {
+        self.start = NSPoint(x: r.minX, y: r.minY)
+        self.end = NSPoint(x: r.maxX, y: r.maxY)
+    }
+
+    func draw(_ dirtyRect: NSRect) {
+//        if let start = self.start {
+//            if let end = self.end {
+//                let pth = NSBezierPath()
+//                pth.lineWidth = 2.0
+//                pth.move(to: start)
+//                pth.line(to: end)
+//                pth.stroke()
+//            }
+//        }
+        if let pth = self.temporaryPath {
+            pth.stroke();
+        }
+    }
+
+    class Factory : MarkingFactory {
+        var start: NSPoint?
+        var end: NSPoint?
+        var last: NSPoint?
+        var temporaryPath: NSBezierPath?
+
+        func startEvent(_ e:NSEvent) {
+            start = e.locationInWindow
+            last = start
+            end = nil
+            temporaryPath = NSBezierPath()
+            temporaryPath?.lineWidth = 0.5
+            temporaryPath?.move(to: start!)
+        }
+
+        func moveEvent(_ e:NSEvent) {
+            end = e.locationInWindow
+
+            if let pth = self.temporaryPath {
+                pth.move(to: last!)
+                pth.line(to: e.locationInWindow)
+                last = e.locationInWindow
+            }
+        }
+
+        func endEvent(_ e:NSEvent, _ markings: inout [Marking]) {
+            end = e.locationInWindow
+            if temporaryPath != nil {
+                //temporaryPath = nil
+            }
+        }
+
+        // when key of this factory pressed and this is selected
+        func selected() {
+
+        }
+
+        // when other factory's key is pressed and this is deselected
+        func deselected() {
+
+        }
+
+        func drawTemp(_ dirtyRect: NSRect) {
+            if let path = temporaryPath {
+                path.stroke()
+            }
+        }
+
+        func makeMarking() -> Marking? {
+            guard start != nil && end != nil else { return nil }
+            // return DrawLine(from: start!, to: end!)
+            return DrawPath(from: start!, to: end!, path: temporaryPath!)
+        }
+    }
+}
+
 class DrawableView: NSView {
     var start: NSEvent? = nil
     var end: NSEvent? = nil {
@@ -202,7 +290,8 @@ class DrawableView: NSView {
 
     var markingStyles = [
         "r": DrawRect.Factory(),
-        "l": DrawLine.Factory()
+        "l": DrawLine.Factory(),
+        "p": DrawPath.Factory(),
         ] as [String : MarkingFactory]
 
     var currentStyle: MarkingFactory?

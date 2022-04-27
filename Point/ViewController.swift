@@ -12,13 +12,20 @@ class ViewController: NSViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-
+//        if let screen = view.window?.screen ?? NSScreen.main {
+//            view.window?.setFrame(screen.visibleFrame, display: true)
+//        }
         // Do any additional setup after loading the view.
+        //view.window?.zoom(self)
     }
 
     override var representedObject: Any? {
         didSet {
         // Update the view, if already loaded.
+            //view.window?.zoom(self)
+            if let screen = view.window?.screen ?? NSScreen.main {
+                view.window?.setFrame(screen.visibleFrame, display: true)
+            }
         }
     }
 

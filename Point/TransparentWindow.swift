@@ -15,8 +15,14 @@ class TransparentWindow: NSWindow {
         isOpaque = false
         // hasShadow = false
         backgroundColor = NSColor(red: 0.9, green: 0.9, blue: 0, alpha: 0.1);//NSColor.clear
+        backgroundColor = NSColor(red: 0.4, green: 0.4, blue: 0.3, alpha: 0.1);//NSColor.clear
         self.title = "Point"
 //        self.titleVisibility = .hidden
         self.titlebarAppearsTransparent = true
+        debugPrint("TransparentWindow parent = \(String(describing: self.parent))")
     }
+}
+
+extension NSWindowController {
+    func maximize() { self.window?.zoom(self) }
 }
