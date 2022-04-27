@@ -14,7 +14,7 @@ protocol Marking {
 }
 
 protocol MarkingFactory {
-    func startEvent(_ e: NSEvent)
+    func startEvent(_ e: NSEvent, color: NSColor)
     func moveEvent(_ e: NSEvent)
     func endEvent(_ e: NSEvent, _ markings: inout [Marking]) // TODO [Marking] omaksi protoksi/luokaksi
     func selected() // when key of this factory pressed and this is selected
@@ -28,12 +28,14 @@ class DrawRect : Marking {
     var rect: NSRect?
     var start: NSPoint?
     var end: NSPoint?
+    var color: NSColor?
 
-    init(from start: NSPoint, to end: NSPoint) {
+    init(from start: NSPoint, to end: NSPoint, color: NSColor) {
         let rect = NSRect(origin: start,
                       size: NSSize(width: end.x-start.x,
                                    height: abs(end.y-start.y)))
         self.rect = rect //.standardized not needed as screen size window
+        self.color = color
     }
 
     init(withRect r: NSRect) {
@@ -42,7 +44,9 @@ class DrawRect : Marking {
 
     func draw(_ dirtyRect: NSRect) {
         if let rect = self.rect {
+            color?.set()
             rect.frame(withWidth: 2.0)
+            NSColor.black.set()
         }
     }
 
@@ -50,10 +54,12 @@ class DrawRect : Marking {
         var start: NSPoint?
         var end: NSPoint?
         var temporaryPath: NSBezierPath?
+        var currentColor:  NSColor?
 
-        func startEvent(_ e:NSEvent) {
+        func startEvent(_ e:NSEvent, color: NSColor) {
             start = e.locationInWindow
             end = nil
+            currentColor = color
             temporaryPath = NSBezierPath()
             temporaryPath?.lineWidth = 0.1
             temporaryPath?.move(to: start!)
@@ -108,7 +114,7 @@ class DrawRect : Marking {
 
         func makeMarking() -> Marking? {
             guard start != nil && end != nil else { return nil }
-            return DrawRect(from: start!, to: end!)
+            return DrawRect(from: start!, to: end!, color: currentColor!)
         }
     }
 }
@@ -116,25 +122,38 @@ class DrawRect : Marking {
 class DrawLine : Marking {
     var start: NSPoint?
     var end: NSPoint?
+    var color: NSColor?
 
-    init(from start: NSPoint, to end: NSPoint) {
-        self.start = start
-        self.end = end
+    convenience init(from start: NSPoint, to end: NSPoint) {
+        self.init(from: start, to: end, color: NSColor.black)
     }
 
-    init(withRect r: NSRect) {
+    init(from start: NSPoint, to end: NSPoint, color: NSColor) {
+        self.start = start
+        self.end = end
+        self.color = color
+    }
+
+    convenience init(withRect r: NSRect) {
+        self.init(withRect: r, color: NSColor.black)
+    }
+
+    init(withRect r: NSRect, color: NSColor) {
         self.start = NSPoint(x: r.minX, y: r.minY)
         self.end = NSPoint(x: r.maxX, y: r.maxY)
+        self.color = color
     }
 
     func draw(_ dirtyRect: NSRect) {
         if let start = self.start {
             if let end = self.end {
+                self.color?.set()
                 let pth = NSBezierPath()
                 pth.lineWidth = 2.0
                 pth.move(to: start)
                 pth.line(to: end)
                 pth.stroke()
+                NSColor.black.set()
             }
         }
     }
@@ -143,13 +162,15 @@ class DrawLine : Marking {
         var start: NSPoint?
         var end: NSPoint?
         var temporaryPath: NSBezierPath?
+        var currentColor: NSColor?
 
-        func startEvent(_ e:NSEvent) {
+        func startEvent(_ e:NSEvent, color: NSColor) {
             start = e.locationInWindow
             end = nil
             temporaryPath = NSBezierPath()
             temporaryPath?.lineWidth = 0.1
             temporaryPath?.move(to: start!)
+            currentColor = color
         }
 
         func moveEvent(_ e:NSEvent) {
@@ -186,7 +207,7 @@ class DrawLine : Marking {
 
         func makeMarking() -> Marking? {
             guard start != nil && end != nil else { return nil }
-            return DrawLine(from: start!, to: end!)
+            return DrawLine(from: start!, to: end!, color: currentColor!)
         }
     }
 }
@@ -196,17 +217,28 @@ class DrawPath : Marking {
     var start: NSPoint?
     var end: NSPoint?
     var temporaryPath: NSBezierPath?
+    var color: NSColor?
 
-    init(from start: NSPoint, to end: NSPoint, path: NSBezierPath) {
+    convenience init(from start: NSPoint, to end: NSPoint, path: NSBezierPath) {
+        self.init(from: start, to: end, path: path, color: NSColor.black)
+    }
+
+    init(from start: NSPoint, to end: NSPoint, path: NSBezierPath, color: NSColor) {
         self.start = start
         self.end = end
         self.temporaryPath = path
         self.temporaryPath?.lineWidth = 2.0
+        self.color = color
     }
 
-    init(withRect r: NSRect) {
+    convenience init(withRect r: NSRect) {
+        self.init(withRect: r, color: NSColor.black)
+    }
+
+    init(withRect r: NSRect, color: NSColor) {
         self.start = NSPoint(x: r.minX, y: r.minY)
         self.end = NSPoint(x: r.maxX, y: r.maxY)
+        self.color = color
     }
 
     func draw(_ dirtyRect: NSRect) {
@@ -220,7 +252,9 @@ class DrawPath : Marking {
 //            }
 //        }
         if let pth = self.temporaryPath {
+            color?.set()
             pth.stroke();
+            NSColor.black.set()
         }
     }
 
@@ -229,14 +263,16 @@ class DrawPath : Marking {
         var end: NSPoint?
         var last: NSPoint?
         var temporaryPath: NSBezierPath?
+        var currentColor: NSColor?
 
-        func startEvent(_ e:NSEvent) {
+        func startEvent(_ e:NSEvent, color: NSColor) {
             start = e.locationInWindow
             last = start
             end = nil
             temporaryPath = NSBezierPath()
             temporaryPath?.lineWidth = 0.5
             temporaryPath?.move(to: start!)
+            currentColor = color
         }
 
         func moveEvent(_ e:NSEvent) {
@@ -251,9 +287,6 @@ class DrawPath : Marking {
 
         func endEvent(_ e:NSEvent, _ markings: inout [Marking]) {
             end = e.locationInWindow
-            if temporaryPath != nil {
-                //temporaryPath = nil
-            }
         }
 
         // when key of this factory pressed and this is selected
@@ -273,9 +306,10 @@ class DrawPath : Marking {
         }
 
         func makeMarking() -> Marking? {
-            guard start != nil && end != nil else { return nil }
-            // return DrawLine(from: start!, to: end!)
-            return DrawPath(from: start!, to: end!, path: temporaryPath!)
+            guard start != nil && end != nil && temporaryPath != nil else { return nil }
+            let p = DrawPath(from: start!, to: end!, path: temporaryPath!, color: currentColor!)
+            temporaryPath = nil
+            return p
         }
     }
 }
@@ -295,6 +329,8 @@ class DrawableView: NSView {
         ] as [String : MarkingFactory]
 
     var currentStyle: MarkingFactory?
+
+    var currentColor = NSColor.black
 
     override var acceptsFirstResponder: Bool {
         return true
@@ -319,7 +355,7 @@ class DrawableView: NSView {
         guard start == nil else { return }
         start = event
         end = nil
-        currentStyle!.startEvent(event)
+        currentStyle!.startEvent(event, color: currentColor)
     }
 
     override func mouseUp(with event: NSEvent) {
@@ -348,6 +384,14 @@ class DrawableView: NSView {
                     markings.removeLast()
                 }
                 self.needsDisplay = true
+            } else if keys == "b" {
+                currentColor = .black
+            } else if keys == "B" {
+                currentColor = .blue
+            } else if keys == "w" {
+                currentColor = .white
+            } else if keys == "o" {
+                currentColor = .orange
             } else if markingStyles.keys.contains(keys) {
                 currentStyle = markingStyles[keys]
             } else {
